@@ -75,7 +75,12 @@ func TestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get printer name from query parameter
-	printerName := "POS-80" // default printer name
+	printerName := r.URL.Query().Get("printerName")
+	if printerName == "" {
+		http.Error(w, "printerName required", http.StatusBadRequest)
+		return
+	}
+
 	receiptText := `Toko Wijaya
 Jl. Widorowati, Surakarta
 ================================
