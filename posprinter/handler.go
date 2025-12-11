@@ -5,11 +5,23 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"runtime"
+	"time"
 )
+
+var serverStartTime = time.Now()
 
 type PrintRequest struct {
 	PrinterName  string `json:"printerName"`
 	EscposBase64 string `json:"escpos"`
+}
+
+type HealthResponse struct {
+	Status        string `json:"status"`
+	Uptime        string `json:"uptime"`
+	Platform      string `json:"platform"`
+	PrintersCount int    `json:"printersCount"`
+	ServerTime    string `json:"serverTime"`
 }
 
 // PrintHandler handles HTTP requests for printing
@@ -90,4 +102,36 @@ Terima Kasih sudah belanja!`
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status":"ok","message":"Test print sent to printer"}`))
+}
+
+// HealthHandler handles GET /health for server health checks
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Calculate uptime
+	uptime := time.Since(serverStartTime)
+	uptimeStr := uptime.Round(time.Second).String()
+
+	// Get printer count
+	printers, err := ListPrinters()
+	printerCount := 0
+	if err == nil {
+		printerCount = len(printers)
+	}
+
+	// Build health response
+	health := HealthResponse{
+		Status:        "healthy",
+		Uptime:        uptimeStr,
+		Platform:      runtime.GOOS + "/" + runtime.GOARCH,
+		PrintersCount: printerCount,
+		ServerTime:    time.Now().Format(time.RFC3339),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	resp, _ := json.Marshal(health)
+	w.Write(resp)
 }
